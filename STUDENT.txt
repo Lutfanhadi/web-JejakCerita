@@ -1,0 +1,3 @@
+Nama Aplikasi: JejakCerita Story App
+URL Deployment: https://jejakcerita.netlify.app
+URL Repository GitHub: https://github.com/lutfanhadi/jejakcerita-pwa
