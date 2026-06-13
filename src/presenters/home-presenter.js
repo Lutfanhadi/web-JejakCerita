@@ -29,7 +29,7 @@ class HomePresenter {
     await this._fetchAndRenderStories();
     this._bindListMapSync();
     this._setupInstallPrompt();
-    await this._setupNotificationToggle();
+    this._setupNotificationToggle();
 
     // Listen for custom sync completion event to refresh stories
     this._onStoriesSynced = async () => {

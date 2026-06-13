@@ -19,6 +19,19 @@ function updateConnectionStatus() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // === REGISTER SERVICE WORKER FIRST ===
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
+      console.log('Service Worker registered successfully, scope:', registration.scope);
+    } catch (error) {
+      console.error('Service Worker registration failed:', error);
+    }
+  }
+
+  // Initial connection check
+  updateConnectionStatus();
+
   const app = new App({
     content: document.querySelector('#main-content'),
     drawerButton: document.querySelector('#drawer-button'),
@@ -40,19 +53,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       localStorage.removeItem('authName');
       window.location.hash = '#/login';
     });
-  }
-
-  // === REGISTER SERVICE WORKER ===
-  if ('serviceWorker' in navigator) {
-    try {
-      const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
-      console.log('Service Worker registered successfully, scope:', registration.scope);
-      
-      // Initial connection check
-      updateConnectionStatus();
-    } catch (error) {
-      console.error('Service Worker registration failed:', error);
-    }
   }
 
   // === LISTEN TO CONNECTION STATUS ===
