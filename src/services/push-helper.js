@@ -46,8 +46,11 @@ const PushHelper = {
 
     const subscription = await registration.pushManager.subscribe(subscribeOptions);
 
-    // 3. Send subscription to API
-    const response = await StoryApi.subscribeNotification(subscription);
+    // 3. Send subscription to API (remove expirationTime to avoid backend Joi validation error)
+    const subscriptionJson = subscription.toJSON();
+    delete subscriptionJson.expirationTime;
+
+    const response = await StoryApi.subscribeNotification(subscriptionJson);
     if (response.error) {
       // Rollback if API fails
       await subscription.unsubscribe();

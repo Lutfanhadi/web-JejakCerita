@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // === REGISTER SERVICE WORKER ===
   if ('serviceWorker' in navigator) {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
       console.log('Service Worker registered successfully, scope:', registration.scope);
       
       // Initial connection check
