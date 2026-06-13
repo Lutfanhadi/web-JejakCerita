@@ -8,15 +8,28 @@ if (workbox) {
   const CACHE_NAME_API = 'jejakcerita-api-v1';
   const CACHE_NAME_IMAGES = 'jejakcerita-images-v1';
 
-  // Cache static assets (CSS, JS, index.html, manifest, icons)
+  // Cache document / index.html (Network First to allow updates)
+  workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'document',
+    new workbox.strategies.NetworkFirst({
+      cacheName: 'jejakcerita-document-v1',
+      plugins: [
+        new workbox.expiration.ExpirationPlugin({
+          maxEntries: 10,
+          maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        }),
+      ],
+    })
+  );
+
+  // Cache static assets (CSS, JS, manifest, icons, fonts) - Cache First
   workbox.routing.registerRoute(
     ({ request, url }) =>
       request.destination === 'style' ||
       request.destination === 'script' ||
-      request.destination === 'document' ||
       request.destination === 'font' ||
       url.pathname.includes('manifest.webmanifest') ||
-      url.pathname.startsWith('/images/'),
+      url.pathname.includes('/images/'),
     new workbox.strategies.CacheFirst({
       cacheName: CACHE_NAME_STATIC,
       plugins: [
@@ -48,7 +61,7 @@ if (workbox) {
   workbox.routing.registerRoute(
     ({ url }) =>
       url.origin === 'https://story-api.dicoding.dev' &&
-      url.pathname.startsWith('/v1/images/'),
+      url.pathname.includes('/images/'),
     new workbox.strategies.CacheFirst({
       cacheName: CACHE_NAME_IMAGES,
       plugins: [
@@ -65,11 +78,13 @@ if (workbox) {
 
 // === PUSH NOTIFICATION EVENTS ===
 self.addEventListener('push', (event) => {
+  const baseImgUrl = new URL('images/logo-192.png', self.location.href).href;
+
   let title = 'Cerita Baru';
   let options = {
     body: 'Ada cerita baru di JejakCerita!',
-    icon: '/images/logo-192.png',
-    badge: '/images/logo-192.png',
+    icon: baseImgUrl,
+    badge: baseImgUrl,
     data: {
       id: '',
     },
@@ -78,23 +93,58 @@ self.addEventListener('push', (event) => {
   if (event.data) {
     try {
       const payload = event.data.json();
+      
+      // Parse flat properties
       title = payload.title || title;
+      options.body = payload.body || payload.message || options.body;
+      
+      if (payload.icon) {
+        options.icon = new URL(payload.icon, self.location.href).href;
+      }
+      if (payload.badge) {
+        options.badge = new URL(payload.badge, self.location.href).href;
+      }
+      
+      if (payload.data && payload.data.id) {
+        options.data.id = payload.data.id;
+      } else if (payload.id) {
+        options.data.id = payload.id;
+      }
+
+      // Parse nested options if present
       if (payload.options) {
-        options = {
-          ...options,
-          ...payload.options,
-          icon: payload.options.icon || '/images/logo-192.png',
-          badge: payload.options.badge || '/images/logo-192.png',
-          data: {
+        options.body = payload.options.body || options.body;
+        
+        if (payload.options.icon) {
+          options.icon = new URL(payload.options.icon, self.location.href).href;
+        }
+        if (payload.options.badge) {
+          options.badge = new URL(payload.options.badge, self.location.href).href;
+        }
+        
+        if (payload.options.data) {
+          options.data = {
             ...options.data,
             ...payload.options.data,
-          },
-        };
+          };
+        }
       }
     } catch (e) {
-      options.body = event.data.text();
+      const text = event.data.text();
+      if (text) {
+        options.body = text;
+      }
     }
   }
+
+  // Ensure action button to navigate is available (Advanced Requirement)
+  options.actions = [
+    {
+      action: 'view-detail',
+      title: 'Lihat Detail',
+      icon: baseImgUrl
+    }
+  ];
 
   event.waitUntil(self.registration.showNotification(title, options));
 });
@@ -105,9 +155,10 @@ self.addEventListener('notificationclick', (event) => {
 
   notification.close();
 
-  // Redirect client to specific story detail page
+  // Prepend subpath /web-JejakCerita/ by resolving relative to service worker location
   const targetHash = storyId ? `#/stories/${storyId}` : '#/';
-  const urlToOpen = new URL(targetHash, self.location.origin).href;
+  const baseUrl = new URL('./', self.location.href).href;
+  const urlToOpen = baseUrl + targetHash;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
@@ -197,8 +248,8 @@ async function syncOfflineStories() {
         // Show success local notification
         self.registration.showNotification('Sinkronisasi Berhasil', {
           body: 'Story offline Anda telah diunggah ke server!',
-          icon: '/images/logo-192.png',
-          badge: '/images/logo-192.png',
+          icon: new URL('images/logo-192.png', self.location.href).href,
+          badge: new URL('images/logo-192.png', self.location.href).href,
         });
       }
     } catch (error) {
